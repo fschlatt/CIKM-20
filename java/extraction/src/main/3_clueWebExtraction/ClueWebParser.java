@@ -24,15 +24,21 @@
  *
  */
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipException;
 
@@ -51,10 +57,10 @@ public final class ClueWebParser {
   private PrintWriter printWriter;
   private PotthastJerichoExtractor textExtractor;
   private String pathPatterns;
+  private Pattern ignoreUriPattern;
 
-  public ClueWebParser(final String pathPatterns,
-                       final String pathStopWordList,
-                       final String pathOutput) {
+  public ClueWebParser(final String pathPatterns, final String pathStopWordList, final String pathOutput,
+      final String ignoreUriPath) {
     this.pathPatterns = pathPatterns;
     textExtractor = new PotthastJerichoExtractor(pathStopWordList);
     try {
@@ -62,6 +68,28 @@ public final class ClueWebParser {
     } catch (FileNotFoundException e) {
       e.printStackTrace();
     }
+    try {
+      loadIgnoreUriPattern(ignoreUriPath);
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void loadIgnoreUriPattern(String ignoreUriPath) throws FileNotFoundException {
+    File ignoreUrisFile = new File(ignoreUriPath);
+    FileReader fr = new FileReader(ignoreUrisFile);
+    BufferedReader bufferedReader = new BufferedReader(fr);
+
+    List<String> ignoreUris = new ArrayList<String>();
+    try {
+      for (String uri = bufferedReader.readLine(); uri != null; uri = bufferedReader.readLine()) {
+        ignoreUris.add("\\Q" + uri + "\\E");
+      }
+      bufferedReader.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    ignoreUriPattern = Pattern.compile(StringUtils.join(ignoreUris, "|"));
   }
 
   public void parse(final String path) {
@@ -75,10 +103,8 @@ public final class ClueWebParser {
     printWriter.close();
   }
 
-  private void extractText(final String warcRecordIdUri,
-                           final String warcTargetUriStr,
-                           final String warcDate,
-                           final String html) {
+  private void extractText(final String warcRecordIdUri, final String warcTargetUriStr, final String warcDate,
+      final String html) {
     List<String> sentences = textExtractor.extract(html);
 
     if (sentences == null || sentences.isEmpty()) {
@@ -92,16 +118,10 @@ public final class ClueWebParser {
 
     LinkedList<ClueWebSentence> clueWebSentences = new LinkedList<>();
     for (String sentenceSurface : sentences) {
-      clueWebSentences.add(new ClueWebSentence(
-              warcRecordIdUri,
-              warcTargetUriStr,
-              warcDate,
-              sentenceSurface
-      ));
+      clueWebSentences.add(new ClueWebSentence(warcRecordIdUri, warcTargetUriStr, warcDate, sentenceSurface));
     }
 
-    MainExtractor extractor = new MainExtractor(
-            pathPatterns, N_EXTRACTION_THREADS);
+    MainExtractor extractor = new MainExtractor(pathPatterns, N_EXTRACTION_THREADS);
     extractor.parse(clueWebSentences);
 
     for (GeneralSentence sentence : extractor.getAllSentences()) {
@@ -128,13 +148,15 @@ public final class ClueWebParser {
         String warcTargetUriStr = record.header.warcTargetUriStr;
         String warcDate = record.header.warcDateStr;
 
-        if (record.hasPayload()
-                && record.header.contentType.mediaType.equals("http")) {
-          InputStream inputStream = record.getPayload().getInputStream();
-          StringWriter writer = new StringWriter();
-          IOUtils.copy(inputStream, writer, "UTF-8");
-          String html = writer.toString();
-          extractText(warcRecordIdUri, warcTargetUriStr, warcDate, html);
+        if (record.hasPayload() && record.header.contentType.mediaType.equals("http")) {
+          Matcher matcher = ignoreUriPattern.matcher(warcTargetUriStr);
+          if (!matcher.find()) {
+            InputStream inputStream = record.getPayload().getInputStream();
+            StringWriter writer = new StringWriter();
+            IOUtils.copy(inputStream, writer, "UTF-8");
+            String html = writer.toString();
+            extractText(warcRecordIdUri, warcTargetUriStr, warcDate, html);
+          }
         }
       }
     } catch (ZipException e) {

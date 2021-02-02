@@ -51,8 +51,8 @@ public final class Main {
       String patterns = args[1];
       String enStopWordList = args[2];
       String output = args[3];
-      ClueWebParser parser = new ClueWebParser(
-              patterns, enStopWordList, output);
+      String ignoreUriPath = args[4];
+      ClueWebParser parser = new ClueWebParser(patterns, enStopWordList, output, ignoreUriPath);
 
       String clueWebWarcFile = args[0];
       parser.parse(clueWebWarcFile);
