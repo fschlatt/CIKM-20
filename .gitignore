@@ -9,6 +9,11 @@ target/
 *.so
 java/**/data/**
 
+.settings
+.classpath
+.project
+.factorypath
+
 ######### LATEX ################
 
 ## Core latex/pdflatex auxiliary files:
