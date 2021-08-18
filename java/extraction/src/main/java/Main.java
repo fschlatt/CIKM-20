@@ -28,6 +28,8 @@ import java.util.Arrays;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaSparkContext;
 
 public final class Main {
 
@@ -40,6 +42,9 @@ public final class Main {
     logger.info("Arguments: ");
     Arrays.stream(args).forEach(logger::info);
 
+    SparkConf conf = new SparkConf().setMaster("local").setAppName("CauseNet Parser");
+    JavaSparkContext sc = new JavaSparkContext(conf);
+
     if (args[0].contains("enwiki")) {
       WikipediaParser p = new WikipediaParser();
 
@@ -48,15 +53,16 @@ public final class Main {
       String output = args[2];
       p.parseDump(wikipediaDump, patterns, output);
     } else {
+      String cluewebPath = args[0];
+      cluewebPath = cluewebPath.replace("\"", "");
       String patterns = args[1];
       String enStopWordList = args[2];
       String output = args[3];
       String ignoreUriPath = args[4];
-      ClueWebParser parser = new ClueWebParser(patterns, enStopWordList, output, ignoreUriPath);
-
-      String clueWebWarcFile = args[0];
-      parser.parse(clueWebWarcFile);
+      ClueWebParser.parse(sc, cluewebPath, FailsafeWarcInputFormats.FailsafeClueWeb12InputFormat.class, output,
+          patterns, enStopWordList, ignoreUriPath);
     }
+    sc.close();
     logger.info("Finished");
   }
 

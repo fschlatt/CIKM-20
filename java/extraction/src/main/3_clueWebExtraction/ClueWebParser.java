@@ -35,47 +35,30 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jwat.warc.WarcReader;
-import org.jwat.warc.WarcReaderFactory;
-import org.jwat.warc.WarcRecord;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
+
+import de.webis.chatnoir2.mapfile_generator.inputformats.WarcInputFormat;
+import de.webis.chatnoir2.mapfile_generator.warc.WarcRecord;
 
 public final class ClueWebParser {
 
   private static final int N_EXTRACTION_THREADS = 16;
   private static Logger logger = LogManager.getLogger(Main.class);
-  private PrintWriter printWriter;
-  private PotthastJerichoExtractor textExtractor;
-  private String pathPatterns;
-  private Pattern ignoreUriPattern;
 
-  public ClueWebParser(final String pathPatterns, final String pathStopWordList, final String pathOutput,
-      final String ignoreUriPath) {
-    this.pathPatterns = pathPatterns;
-    textExtractor = new PotthastJerichoExtractor(pathStopWordList);
-    try {
-      printWriter = new PrintWriter(new FileOutputStream(pathOutput));
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
-    }
-    try {
-      loadIgnoreUriPattern(ignoreUriPath);
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
-    }
-  }
-
-  private void loadIgnoreUriPattern(String ignoreUriPath) throws FileNotFoundException {
+  private static String loadIgnoreUriPatternString(String ignoreUriPath) throws FileNotFoundException {
     File ignoreUrisFile = new File(ignoreUriPath);
     FileReader fr = new FileReader(ignoreUrisFile);
     BufferedReader bufferedReader = new BufferedReader(fr);
@@ -89,31 +72,35 @@ public final class ClueWebParser {
     } catch (IOException e) {
       e.printStackTrace();
     }
-    ignoreUriPattern = Pattern.compile(StringUtils.join(ignoreUris, "|"));
+    return StringUtils.join(ignoreUris, "|");
   }
 
-  public void parse(final String path) {
+  public static void parse(JavaSparkContext sc, final String path, Class<? extends WarcInputFormat> inputFormat,
+      String output, final String pathPatterns, final String pathStopWordList, final String ignoreUriPath) {
+    String ignoreUriPatternString;
     try {
-      read(path);
-    } catch (IOException e) {
+      ignoreUriPatternString = loadIgnoreUriPatternString(ignoreUriPath);
+      JavaRDD<WarcRecord> warcRecords = WARCParsingUtil.records(sc, path, inputFormat).values();
+      JavaRDD<String> causalClaims = warcRecords
+          .flatMap(r -> read(r, pathPatterns, pathStopWordList, ignoreUriPatternString));
+      causalClaims.saveAsTextFile(output);
+    } catch (FileNotFoundException e) {
       e.printStackTrace();
     }
-
-    printWriter.flush();
-    printWriter.close();
   }
 
-  private void extractText(final String warcRecordIdUri, final String warcTargetUriStr, final String warcDate,
-      final String html) {
+  private static List<String> extractText(final String warcRecordIdUri, final String warcTargetUriStr,
+      final String warcDate, final String html, PotthastJerichoExtractor textExtractor, final String pathPatterns) {
     List<String> sentences = textExtractor.extract(html);
 
+    List<String> results = new ArrayList<String>();
     if (sentences == null || sentences.isEmpty()) {
-      return;
+      return results;
     }
 
     String text = StringUtils.join(sentences, "");
     if (text.trim().equals("")) {
-      return;
+      return results;
     }
 
     LinkedList<ClueWebSentence> clueWebSentences = new LinkedList<>();
@@ -128,41 +115,49 @@ public final class ClueWebParser {
       StringBuilder result = new StringBuilder();
       result.append("clueweb12_sentence\t");
       result.append(sentence.printSentence());
-      result.append("\n");
-      printWriter.write(result.toString());
+      results.add(result.toString());
     }
+    return results;
   }
 
-  private void read(final String path) throws IOException {
-    InputStream fileStream = new FileInputStream(path);
-    if (path.contains(".gz")) {
-      fileStream = new GZIPInputStream(fileStream);
+  private static Iterator<String> read(WarcRecord record, final String pathPatterns, final String pathStopWordList,
+      final String ignoreUriPatternString) throws IOException {
+
+    PotthastJerichoExtractor textExtractor = new PotthastJerichoExtractor(pathStopWordList);
+
+    if (record == null) {
+      logger.warn("Unable to parse warc-record! record is null");
+      return Collections.emptyIterator();
     }
 
-    WarcReader reader = WarcReaderFactory.getReader(fileStream);
-    WarcRecord record;
-
-    try {
-      while ((record = reader.getNextRecord()) != null) {
-        String warcRecordIdUri = record.header.warcRecordIdUri.toString();
-        String warcTargetUriStr = record.header.warcTargetUriStr;
-        String warcDate = record.header.warcDateStr;
-
-        if (record.hasPayload() && record.header.contentType.mediaType.equals("http")) {
-          Matcher matcher = ignoreUriPattern.matcher(warcTargetUriStr);
-          if (!matcher.find()) {
-            InputStream inputStream = record.getPayload().getInputStream();
-            StringWriter writer = new StringWriter();
-            IOUtils.copy(inputStream, writer, "UTF-8");
-            String html = writer.toString();
-            extractText(warcRecordIdUri, warcTargetUriStr, warcDate, html);
-          }
-        }
-      }
-    } catch (ZipException e) {
-      logger.info("Zip Exception, skip file " + path);
+    if (record.getHeader() == null) {
+      logger.warn("Unable to parse warc-header! Header is null");
+      return Collections.emptyIterator();
     }
 
-    logger.info("Finished " + path);
+    WarcHeaderCustom header = new WarcHeaderCustom(record.getHeader());
+
+    if (record.getContent() == null) {
+      logger.warn("Unable to parse warc-record! record.getContent() is null");
+      return Collections.emptyIterator();
+    }
+
+    if (header.getTargetURI() == null) {
+      logger.warn("Unable to parse warc-header! header.getTargetURI() is null");
+      return Collections.emptyIterator();
+    }
+
+    String warcTargetUriStr = header.getTargetURI();
+    Pattern ignoreUriPattern = Pattern.compile(ignoreUriPatternString);
+    Matcher matcher = ignoreUriPattern.matcher(warcTargetUriStr);
+    if (matcher.find()) {
+      return Collections.emptyIterator();
+    }
+    String warcRecordIdUri = header.getRecordID();
+    String warcDate = header.getDate();
+    String html = record.getContent();
+    List<String> results = extractText(warcRecordIdUri, warcTargetUriStr, warcDate, html, textExtractor, pathPatterns);
+
+    return results.iterator();
   }
 }

@@ -90,6 +90,10 @@ public abstract class GeneralSentence {
     this.tokens = tokens;
   }
 
+  public final List<Token> getTokens() {
+    return tokens;
+  }
+
   protected final String escape(final String toEscape) {
     if (toEscape == null) {
       return "";
