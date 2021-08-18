@@ -148,10 +148,12 @@ public final class ClueWebParser {
     }
 
     String warcTargetUriStr = header.getTargetURI();
-    Pattern ignoreUriPattern = Pattern.compile(ignoreUriPatternString);
-    Matcher matcher = ignoreUriPattern.matcher(warcTargetUriStr);
-    if (matcher.find()) {
-      return Collections.emptyIterator();
+    if (!ignoreUriPatternString.isEmpty()) {
+      Pattern ignoreUriPattern = Pattern.compile(ignoreUriPatternString);
+      Matcher matcher = ignoreUriPattern.matcher(warcTargetUriStr);
+      if (matcher.find()) {
+        return Collections.emptyIterator();
+      }
     }
     String warcRecordIdUri = header.getRecordID();
     String warcDate = header.getDate();
