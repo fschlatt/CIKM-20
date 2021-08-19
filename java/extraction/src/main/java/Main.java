@@ -42,7 +42,7 @@ public final class Main {
     logger.info("Arguments: ");
     Arrays.stream(args).forEach(logger::info);
 
-    SparkConf conf = new SparkConf().setMaster("local").setAppName("CauseNet Parser");
+    SparkConf conf = new SparkConf();
     JavaSparkContext sc = new JavaSparkContext(conf);
 
     if (args[0].contains("enwiki")) {
