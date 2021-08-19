@@ -29,6 +29,7 @@
                                 <source>src/main/3_clueWebExtraction</source>
                                 <source>src/main/4_potthastTools</source>
                                 <source>src/main/5_warcTools</source>
+                                <source>src/main/6_commonCrawlExtraction</source>
                             </sources>
                         </configuration>
                     </execution>

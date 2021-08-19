@@ -42,9 +42,6 @@ public final class Main {
     logger.info("Arguments: ");
     Arrays.stream(args).forEach(logger::info);
 
-    SparkConf conf = new SparkConf();
-    JavaSparkContext sc = new JavaSparkContext(conf);
-
     if (args[0].contains("enwiki")) {
       WikipediaParser p = new WikipediaParser();
 
@@ -52,7 +49,10 @@ public final class Main {
       String patterns = args[1];
       String output = args[2];
       p.parseDump(wikipediaDump, patterns, output);
-    } else {
+    } else if (args[0].contains("clue")) {
+      SparkConf conf = new SparkConf();
+      JavaSparkContext sc = new JavaSparkContext(conf);
+
       String cluewebPath = args[0];
       cluewebPath = cluewebPath.replace("\"", "");
       String patterns = args[1];
@@ -61,8 +61,21 @@ public final class Main {
       String ignoreUriPath = args[4];
       ClueWebParser.parse(sc, cluewebPath, FailsafeWarcInputFormats.FailsafeClueWeb12InputFormat.class, output,
           patterns, enStopWordList, ignoreUriPath);
+      sc.close();
+    } else if (args[0].contains("common")) {
+      SparkConf conf = new SparkConf();
+      JavaSparkContext sc = new JavaSparkContext(conf);
+
+      String commonCrawlPath = args[0];
+      commonCrawlPath = commonCrawlPath.replace("\"", "");
+      String patterns = args[1];
+      String enStopWordList = args[2];
+      String output = args[3];
+      String ignoreUriPath = args[4];
+      CommonCrawlParser.parse(sc, commonCrawlPath, FailsafeWarcInputFormats.FailsafeCommonCrawlInputFormat.class,
+          output, patterns, enStopWordList, ignoreUriPath);
+      sc.close();
     }
-    sc.close();
     logger.info("Finished");
   }
 
