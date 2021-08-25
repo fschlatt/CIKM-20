@@ -86,8 +86,7 @@ public final class CausalityExtractor extends Thread {
     }
   }
 
-  private void nlp(final GeneralSentence sample,
-                   final String sentenceSurface) {
+  private void nlp(final GeneralSentence sample, final String sentenceSurface) {
     ExecutorService service = Executors.newSingleThreadExecutor();
 
     try {
@@ -118,10 +117,8 @@ public final class CausalityExtractor extends Thread {
   }
 
   private boolean containsNegativeWord(final String sentence) {
-    return sentence.contains(" no ")
-            || sentence.contains(" not ")
-            || sentence.contains(" doesn't ")
-            || sentence.contains(" didn't ");
+    return sentence.contains(" no ") || sentence.contains(" not ") || sentence.contains(" doesn't ")
+        || sentence.contains(" didn't ");
   }
 
   private void extractCausality(final GeneralSentence sample) {
