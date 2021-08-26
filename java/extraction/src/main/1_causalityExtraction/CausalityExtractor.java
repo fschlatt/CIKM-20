@@ -69,6 +69,10 @@ public final class CausalityExtractor extends Thread {
       return;
     }
 
+    if (sentenceSurface.length() > 2000) {
+      return;
+    }
+
     if (containsNegativeWord(sentenceSurface)) {
       return;
     }
@@ -93,6 +97,9 @@ public final class CausalityExtractor extends Thread {
       final Future<Boolean> f = service.submit(() -> {
         Document doc = new Document(sentenceSurface);
         Sentence sentence = doc.sentences().get(0);
+        if (sentence.tokens().size() > 100) {
+          return false;
+        }
         sample.setTokens(sentence.tokens());
         String dependencyGraph = sentence.dependencyGraph().toDotFormat();
         sample.setDependencyGraph(dependencyGraph);
