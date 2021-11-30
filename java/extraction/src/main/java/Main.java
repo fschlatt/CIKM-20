@@ -24,7 +24,11 @@
  *
  */
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -65,6 +69,18 @@ public final class Main {
     } else if (args[0].contains("common")) {
       SparkConf conf = new SparkConf();
       JavaSparkContext sc = new JavaSparkContext(conf);
+
+      Properties prop = new Properties();
+
+      try (FileInputStream fis = new FileInputStream(args[5])) {
+        prop.load(fis);
+      } catch (FileNotFoundException ex) {
+      } catch (IOException ex) {
+      }
+
+      sc.hadoopConfiguration().set("fs.s3a.access.key", prop.getProperty("access_key"));
+      sc.hadoopConfiguration().set("fs.s3a.secret.key", prop.getProperty("secret_key"));
+      sc.hadoopConfiguration().set("fs.s3a.endpoint", "http://" + prop.getProperty("host_base"));
 
       String commonCrawlPath = args[0];
       commonCrawlPath = commonCrawlPath.replace("\"", "");
