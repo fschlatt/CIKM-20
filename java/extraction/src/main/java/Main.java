@@ -24,11 +24,7 @@
  *
  */
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.Arrays;
-import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -68,7 +64,6 @@ public final class Main {
       sc.close();
     } else if (args[0].contains("common")) {
       SparkConf conf = new SparkConf();
-      conf.setMaster("local").setAppName("foo");
       JavaSparkContext sc = new JavaSparkContext(conf);
 
       String commonCrawlPath = args[0];
