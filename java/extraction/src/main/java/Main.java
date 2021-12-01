@@ -83,7 +83,6 @@ public final class Main {
       sc.hadoopConfiguration().set("fs.s3a.endpoint", "http://" + prop.getProperty("host_base"));
 
       String commonCrawlPath = args[0];
-      commonCrawlPath = commonCrawlPath.replace("\"", "");
       String patterns = args[1];
       String enStopWordList = args[2];
       String output = args[3];
