@@ -68,19 +68,8 @@ public final class Main {
       sc.close();
     } else if (args[0].contains("common")) {
       SparkConf conf = new SparkConf();
+      conf.setMaster("local").setAppName("foo");
       JavaSparkContext sc = new JavaSparkContext(conf);
-
-      Properties prop = new Properties();
-
-      try (FileInputStream fis = new FileInputStream(args[5])) {
-        prop.load(fis);
-      } catch (FileNotFoundException ex) {
-      } catch (IOException ex) {
-      }
-
-      sc.hadoopConfiguration().set("fs.s3a.access.key", prop.getProperty("access_key"));
-      sc.hadoopConfiguration().set("fs.s3a.secret.key", prop.getProperty("secret_key"));
-      sc.hadoopConfiguration().set("fs.s3a.endpoint", "http://" + prop.getProperty("host_base"));
 
       String commonCrawlPath = args[0];
       String patterns = args[1];
