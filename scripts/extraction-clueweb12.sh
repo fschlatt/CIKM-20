@@ -2,16 +2,16 @@
 ## variables
 jar="./java/extraction/target/extraction-1.0-SNAPSHOT-jar-with-dependencies.jar"
 
-data1="/mnt/ceph/storage/data-in-progress/data-research/web-search/medical-question-answering/causenet-data/bootstrapping/2-patterns"
-data2="/mnt/ceph/storage/data-in-progress/data-research/web-search/medical-question-answering/causenet-data/external/stop-word-lists/enStopWordList.txt"
-data4="/mnt/ceph/storage/data-in-progress/data-research/web-search/medical-question-answering/causenet-data/external/ignore-html-lists/empty.txt"
+data1="/mnt/ceph/storage/data-in-progress/data-research/web-search/health-question-answering/causenet-data/bootstrapping/2-patterns"
+data2="/mnt/ceph/storage/data-in-progress/data-research/web-search/health-question-answering/causenet-data/external/stop-word-lists/enStopWordList.txt"
+data4="/mnt/ceph/storage/data-in-progress/data-research/web-search/health-question-answering/causenet-data/external/ignore-html-lists/empty.txt"
 
 while read part
 do
     echo $part
     data0="\"/corpora/corpora-thirdparty/corpus-clueweb/12/*/ClueWeb12_"$part"/*/*.warc.gz\""
     data3="/user/fschlatt/clueweb12/part"$part
-    hdfs dfs -rmdir --ignore-fail-on-non-empty $data3
+    hdfs dfs -rm -r -f $data3
 
     spark-submit \
         --name "CauseNet ClueWeb12 Extraction Part "$part \
