@@ -18,7 +18,7 @@ do
     
     data0="s3a://corpus-commoncrawl-main-2021-10/crawl-data/CC-MAIN-2021-10/segments/"$segment"/warc/*.warc.gz"
     data3="/user/fschlatt/common-crawl/"$segment
-    hdfs dfs -rm -r $data3
+    hdfs dfs -rm -r -f $data3
 
     spark-submit \
         --name "CauseNet CommonCrawl Extraction "$segment \
